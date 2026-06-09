@@ -718,46 +718,99 @@ Save the output — you will paste it into the `gh pr create` command in the nex
 
 ## 5. Phase C — Create the PR and tracking issue
 
+### 5.1 Create the tracking issue
+
 Create the tracking issue first so you have `ISSUE_NUMBER` before writing the PR body:
 
 ```powershell
-gh issue create --repo OWNER/REPO --title "Parents need a shareable view of all school activities" --body "## User story
-As a parent, I want a simple web page I can open in any browser to see all available school activities with their schedule and how many spots are still open, so I can decide which ones to explore without having to use the chat assistant.
+gh issue create --repo OWNER/REPO --title "Update page styling with summer colors" --body "## User story
+As a student or parent, I want the page to have brighter, more summery colors so the experience is more engaging and reflects the fun atmosphere of summer extracurricular activities.
 
 ## Problem
-The current app only exposes activities data through a JSON API. There is no human-readable page a parent can bookmark or share with another parent.
+The current colors (dark blue #1a237e) are too formal and don't convey the energy and fun of school activities.
 
 ## Proposed solution
-A dedicated HTML page at a stable URL that lists all activities in a readable format. No login, no SDK, no JavaScript required — just a plain server-rendered page.
+Update the color palette in \`styles.css\` with more summery tones:
+- Primary colors: turquoise, coral, sunny yellow
+- Lighter and warmer backgrounds
+- Maintain good readability and contrast
+
+## Acceptance criteria
+- [ ] Header with gradient or summer-themed color
+- [ ] Buttons with more vibrant colors
+- [ ] Activity cards with colorful borders or accents
+- [ ] Maintain accessibility (WCAG AA contrast)
 
 ## Out of scope
-- Authentication or access control.
-- Changes to the existing JSON API or the chat assistant.
-- Any new Python dependencies."
+- Changes to HTML structure
+- New functionality
+- Backend changes"
 ```
 
 Record the issue number as `ISSUE_NUMBER`.
 
-Create the PR, substituting the real issue number in `Closes #ISSUE_NUMBER`:
+### 5.2 Create a new branch for the PR
+
+> **Important:** You cannot create a PR from a branch to itself. If you are currently on `feature/sdk-assistant` and want to merge changes *into* `feature/sdk-assistant`, you must create a **new branch** first.
 
 ```powershell
-gh pr create --repo OWNER/REPO --base master --head feature/sdk-assistant --title "feat: add Copilot SDK assistant" --body "## Summary
-- Adds a Copilot SDK playground at scripts\sdk_playground.py
-- Adds a FastAPI assistant stream endpoint
-- Adds read/write tools for Mergington activities
-- Adds a frontend chat panel that consumes streamed responses
+# 1. Make sure you are on the base branch
+git checkout feature/sdk-assistant
+
+# 2. Create a new branch for your feature work
+git checkout -b feature/view-participants
+```
+
+### 5.3 Make your changes and commit
+
+Implement the feature (or let Copilot Coding Agent do it in Phase D). Once done:
+
+```powershell
+# 3. Stage and commit your changes
+git add .
+git commit -m "feat: add button to view activity participants"
+```
+
+### 5.4 Push the new branch to GitHub
+
+```powershell
+# 4. Push the new branch to origin
+git push -u origin feature/view-participants
+```
+
+### 5.5 Create the Pull Request
+
+Now you can create the PR from the new branch into `feature/sdk-assistant`:
+
+```powershell
+gh pr create --repo OWNER/REPO --base feature/sdk-assistant --head feature/view-participants --title "feat: add button to view activity participants" --body "## Summary
+- Adds a 'View Participants' button to each activity card
+- Shows a modal or expandable section with the list of registered participants
+- Allows parents and students to see who is signed up for each activity
 
 ## What to implement
-Add a static activity summary page at GET /activities/summary that returns a plain HTML page listing all activities with their name, schedule, and current participant count. No SDK, no streaming — pure FastAPI with Jinja2 or an f-string template. This page must work independently of the Copilot SDK so it can be tested without a Copilot token.
+Add a button on each activity card that, when clicked, displays the list of participants currently registered for that activity. The UI can be a modal dialog, an expandable panel, or an inline list — whichever fits the existing design best. The data is already available from the /activities endpoint.
 
 ## Acceptance criteria
-- GET /activities/summary returns 200 with Content-Type text/html.
-- The page lists every activity from backend/data/activities.json.
-- Each entry shows name, schedule, and participant count.
-- The existing API routes and chat panel are not modified.
+- Each activity card has a 'View Participants' button
+- Clicking the button shows the list of registered emails/names for that activity
+- The participant list can be closed/collapsed
+- Works without page reload (JavaScript handles the toggle)
+- The existing signup form and API routes are not modified
 
 Closes #ISSUE_NUMBER"
 ```
+
+> **Branch flow diagram:**
+> ```
+> feature/view-participants  (your new changes)
+>          │
+>          ▼  PR merges into
+> feature/sdk-assistant      (base branch)
+>          │
+>          ▼  Eventually merges into
+> main                       (default branch)
+> ```
 
 Record the PR number as `PR_NUMBER`.
 
