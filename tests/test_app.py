@@ -15,13 +15,16 @@ def test_get_open_spots_handles_partial_full_and_overfull_activities():
     assert get_open_spots({"max_participants": 1, "participants": ["a", "b"]}) == 0
 
 
-def test_activities_view_lists_schedule_and_open_spots():
+def test_activities_view_lists_schedule_open_spots_and_participants():
     page = render_activities_page()
 
     assert '<link rel="stylesheet" href="/static/styles.css"' in page
     assert 'class="activities-overview"' in page
+    assert 'Participants:</strong>' in page
 
     for name, activity in activities.items():
         assert name in page
         assert activity["schedule"] in page
         assert f"Spots open:</strong> {get_open_spots(activity)}" in page
+        for participant in activity["participants"]:
+            assert participant in page

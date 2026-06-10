@@ -67,6 +67,17 @@ def render_activities_page():
     activity_cards = []
 
     for name, activity in activities.items():
+        participants = activity["participants"]
+        if participants:
+            participants_markup = f"""
+              <p><strong>Participants:</strong></p>
+              <ul class="participants-list">
+                {''.join(f'<li>{escape(participant)}</li>' for participant in participants)}
+              </ul>
+            """
+        else:
+            participants_markup = '<p class="participants-empty"><strong>Participants:</strong> No one has signed up yet.</p>'
+
         activity_cards.append(
             f"""
             <article class="activity-card">
@@ -74,6 +85,7 @@ def render_activities_page():
               <p>{escape(activity["description"])}</p>
               <p><strong>Schedule:</strong> {escape(activity["schedule"])}</p>
               <p><strong>Spots open:</strong> {get_open_spots(activity)}</p>
+              {participants_markup}
             </article>
             """
         )
