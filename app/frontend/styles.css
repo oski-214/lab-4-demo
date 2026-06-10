@@ -196,14 +196,14 @@ footer {
 }
 
 .user-message {
-  background-color: #1a237e;
+  background-color: #007c91;
   color: white;
   margin-left: auto;
   text-align: right;
 }
 
 .assistant-message {
-  background-color: #e8eaf6;
+  background-color: #e8f7f9;
   color: #333;
   margin-right: auto;
 }
