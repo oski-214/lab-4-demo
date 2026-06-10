@@ -69,10 +69,13 @@ def render_activities_page():
     for name, activity in activities.items():
         participants = activity["participants"]
         if participants:
+            participant_items = "".join(
+                f"<li>{escape(participant)}</li>" for participant in participants
+            )
             participants_markup = f"""
               <p><strong>Participants:</strong></p>
               <ul class="participants-list">
-                {''.join(f'<li>{escape(participant)}</li>' for participant in participants)}
+                {participant_items}
               </ul>
             """
         else:
