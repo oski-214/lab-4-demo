@@ -1,0 +1,98 @@
+name: Branch Change Summary
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  models: read          # necesario para GitHub Models (resumen AI)
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 1) Calcula el rango de commits y construye el diff una sola vez
+      - name: Compute range and build diff
+        id: diff
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+        run: |
+          if [ "$BEFORE" != "0000000000000000000000000000000000000000" ] \
+             && git rev-parse --verify --quiet "$BEFORE" >/dev/null; then
+            RANGE="$BEFORE..$AFTER"
+          else
+            RANGE="$AFTER"
+          fi
+          echo "range=$RANGE" >> "$GITHUB_OUTPUT"
+
+          # Guardamos el diff truncado para no exceder el límite de tokens del modelo
+          {
+            echo 'patch<<EOF'
+            git diff "$RANGE" | head -c 12000
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+
+      # 2) Resumen en lenguaje natural con GitHub Models
+      - name: Summarize the changes with AI
+        id: ai
+        uses: actions/ai-inference@v1
+        with:
+          model: openai/gpt-4o
+          system-prompt: |
+            You are a senior engineer writing concise release notes.
+            Given a git diff, explain in clear prose: what changed,
+            why it likely matters, and any risks reviewers should check.
+            Use short paragraphs and bullet points. Do not repeat the diff.
+          prompt: ${{ steps.diff.outputs.patch }}
+
+      # 3) Escribe el Job Summary combinando todo
+      - name: Write job summary
+        env:
+          RANGE: ${{ steps.diff.outputs.range }}
+          AFTER: ${{ github.event.after }}
+        run: |
+          echo "## New changes on \`${GITHUB_REF_NAME}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          # --- PR number desde el merge commit, si existe ---
+          PR=$(git log -1 --pretty=%s "$AFTER" \
+               | grep -oiE 'Merge pull request #[0-9]+' \
+               | grep -oE '[0-9]+' || true)
+          if [ -n "$PR" ]; then
+            echo "- Merged pull request: **#$PR**" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          # --- Issues referenciadas en los commits ---
+          ISSUES=$(git log "$RANGE" --pretty=%B \
+                   | grep -oiE '#[0-9]+' | grep -oE '[0-9]+' | sort -u || true)
+          if [ -n "$ISSUES" ]; then
+            echo "- Referenced issues:" >> "$GITHUB_STEP_SUMMARY"
+            for i in $ISSUES; do
+              echo "    - #$i" >> "$GITHUB_STEP_SUMMARY"
+            done
+          fi
+
+          # --- Resumen AI (Opción 3) ---
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Summary of changes" >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.ai.outputs.response }}" >> "$GITHUB_STEP_SUMMARY"
+
+          # --- Commits ---
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Commits" >> "$GITHUB_STEP_SUMMARY"
+          git log "$RANGE" --pretty='- %h %s (%an)' >> "$GITHUB_STEP_SUMMARY"
+
+          # --- Estadísticas por archivo (Opción 1) ---
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Files changed" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          git diff --stat "$RANGE" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
