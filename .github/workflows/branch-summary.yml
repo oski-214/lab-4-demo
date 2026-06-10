@@ -1,0 +1,60 @@
+name: Branch Change Summary
+
+on:
+  push:
+    branches:
+      - feature/sdk-assistant
+
+permissions:
+  contents: read
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Draft change summary
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+        run: |
+          echo "## New changes on \`feature/sdk-assistant\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          # Commit range for this push (handle first push to the branch)
+          if [ "$BEFORE" != "0000000000000000000000000000000000000000" ] \
+             && git rev-parse --verify --quiet "$BEFORE" >/dev/null; then
+            RANGE="$BEFORE..$AFTER"
+          else
+            RANGE="$AFTER"
+          fi
+
+          # PR number from a merge commit subject, if present
+          PR=$(git log -1 --pretty=%s "$AFTER" \
+               | grep -oiE 'Merge pull request #[0-9]+' \
+               | grep -oE '[0-9]+' || true)
+          if [ -n "$PR" ]; then
+            echo "- Merged pull request: **#$PR**" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          # Issue references across the pushed commits
+          ISSUES=$(git log "$RANGE" --pretty=%B \
+                   | grep -oiE '#[0-9]+' | grep -oE '[0-9]+' | sort -u || true)
+          if [ -n "$ISSUES" ]; then
+            echo "- Referenced issues:" >> "$GITHUB_STEP_SUMMARY"
+            for i in $ISSUES; do
+              echo "    - #$i" >> "$GITHUB_STEP_SUMMARY"
+            done
+          fi
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Commits" >> "$GITHUB_STEP_SUMMARY"
+          git log "$RANGE" --pretty='- %h %s (%an)' >> "$GITHUB_STEP_SUMMARY"
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Files changed" >> "$GITHUB_STEP_SUMMARY"
+          git diff --name-status "$RANGE" >> "$GITHUB_STEP_SUMMARY"

@@ -80,7 +80,6 @@ def render_activities_page():
             """
         else:
             participants_markup = '<p class="participants-empty"><strong>Participants:</strong> No one has signed up yet.</p>'
-
         activity_cards.append(
             f"""
             <article class="activity-card">
